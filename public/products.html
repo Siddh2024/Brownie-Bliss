@@ -166,6 +166,20 @@
   </div>
 
   <div class="products-inner" style="padding: 0 30px 80px;">
+    <!-- Price Filter from main branch -->
+    <div class="price-filter-wrapper">
+      <div class="price-filter">
+        <label for="priceFilter">Filter by Price</label>
+        <select id="priceFilter" class="custom-price-filter" onchange="updatePriceFilter()">
+          <option value="all">All Prices</option>
+          <option value="under200">Under ₹200</option>
+          <option value="200to500">₹200 - ₹500</option>
+          <option value="above500">Above ₹500</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Product grid from feature branch -->
     <div class="all-products-grid" id="allProductsGrid"></div>
   </div>
 

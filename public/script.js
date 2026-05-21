@@ -15,11 +15,12 @@ function toggleTheme() {
     localStorage.setItem('bb_theme', next);
     applyTheme(next);
 }
+window.toggleTheme = toggleTheme;
 
 // --- PRODUCTS DATA ---
 let products = [];
 let bdayCakes = {};
-buildCatalogFromList(null);
+// buildCatalogFromList(null);
 const DEFAULT_PRODUCTS = [
     { id: 1, name: "Velvet Dream Cake", category: "cakes", price: 850, emoji: "", img: "https://theobroma.in/cdn/shop/files/redvelvet-theo.jpg?v=1701321860" },
     { id: 2, name: "Dutch Truffle Delight", category: "cakes", price: 950, emoji: "", img: "https://tse3.mm.bing.net/th/id/OIP.6wMpc_E6xsHLl3zT2ItBSQHaHa?pid=Api&P=0&h=180" },
@@ -133,32 +134,21 @@ async function loadProducts() {
     try {
         const res = await fetch(`${API_BASE}/products`);
         const data = await res.json();
-        if (data.success && Array.isArray(data.products)) {
-            buildCatalogFromList(data.products);
-        } else {
-            buildCatalogFromList(null);
-        }
-    } catch (e) {
-        console.error('Error loading products from database:', e);
-        buildCatalogFromList(null);
-    }
-    if (document.getElementById('productsGrid')) {
-        filterProducts('all');
-    }
-    if (document.getElementById('cakePrice')) {
-        calculateBdayPrice();
+
         if (data.success && Array.isArray(data.products) && data.products.length) {
-            products = data.products.filter(p => p.type === 'standard').map(p => ({
-                id: p.id_ref,
-                name: p.name,
-                category: p.category,
-                price: p.price,
-                emoji: p.emoji,
-                img: p.img,
-                description: p.description || ''
-            }));
+        
+          products = data.products.filter(p => p.type === 'standard').map(p => ({
+            id: p.id_ref,
+            name: p.name,
+            category: p.category,
+            price: p.price,
+            emoji: p.emoji,
+            img: p.img,
+            description: p.description || ''
+        }));
 
             const bd = data.products.filter(p => p.type === 'birthday');
+
             bd.forEach(p => {
                 bdayCakes[p.id_ref] = {
                     price: p.price,
@@ -167,22 +157,24 @@ async function loadProducts() {
                 };
             });
 
-            // Re-render UI now that data is loaded
-            if (document.getElementById('productsGrid')) {
-                filterProducts('all');
-            }
-            if (document.getElementById('cakePrice')) {
-                calculateBdayPrice();
-            }
         } else {
             useFallbackProducts();
         }
+
     } catch (e) {
         console.error('Error loading products from database:', e);
         useFallbackProducts();
     }
-}
 
+    // Render UI
+    if (document.getElementById('productsGrid')) {
+        filterProducts('all');
+    }
+
+    if (document.getElementById('cakePrice')) {
+        calculateBdayPrice();
+    }
+}
 // --- CART STATE ---
 let cart = JSON.parse(localStorage.getItem('brownie_bliss_cart') || '[]');
 let checkoutState = { name: '', phone: '', email: '', address: '', city: '', pincode: '', verified: false, currentStep: 1 };
@@ -204,7 +196,7 @@ function updateCartUI() {
 
     if (cart.length === 0) {
         cartContainer.innerHTML = '<div class="cart-empty"><span class="cart-empty-icon">🍫</span>Your cart is empty</div>';
-        if (cartFooter) cartFooter.style.display = 'none';
+         if (cartFooter) cartFooter.style.display = 'none';
     } else {
         cartContainer.innerHTML = cart.map((item, index) => {
             const c = item.customizations;
@@ -597,27 +589,46 @@ async function placeOrder() {
 
 // --- WHATSAPP FINAL ---
 function sendWhatsAppFinal(orderId, itemsSnap, orderTotal) {
-    const lines = Array.isArray(itemsSnap) && itemsSnap.length ? itemsSnap : cart;
+
+    const lines = Array.isArray(itemsSnap) && itemsSnap.length
+        ? itemsSnap
+        : cart;
+
     const total = typeof orderTotal === 'number' && Number.isFinite(orderTotal)
         ? orderTotal
         : lines.reduce((s, i) => s + Number(i.price) * Number(i.qty), 0);
-    const itemLines = lines.map(i => `• ${i.name} × ${i.qty} = ₹${(Number(i.price) * Number(i.qty)).toLocaleString('en-IN')}`).join('\n');
-function sendWhatsAppFinal(orderId) {
-    const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
-    const itemLines = cart.map(i => {
-        let line = `• ${i.name} × ${i.qty} = ₹${(i.price * i.qty).toLocaleString()}`;
+
+    const itemLines = lines.map(i => {
+
+        let line = `• ${i.name} × ${i.qty} = ₹${(Number(i.price) * Number(i.qty)).toLocaleString('en-IN')}`;
+
         if (i.customizations) {
             const c = i.customizations;
             const details = [];
-            if (c.dietary) details.push(c.dietary === 'eggless' ? 'Eggless' : 'Egg');
-            if (c.toppings && c.toppings.length) details.push(c.toppings.map(t => `+${t.name}`).join(', '));
-            if (c.message) details.push(`Msg: "${c.message}"`);
-            if (details.length) line += `\n   _${details.join(' | ')}_`;
+
+            if (c.dietary) {
+                details.push(c.dietary === 'eggless' ? 'Eggless' : 'Egg');
+            }
+
+            if (c.toppings && c.toppings.length) {
+                details.push(c.toppings.map(t => `+${t.name}`).join(', '));
+            }
+
+            if (c.message) {
+                details.push(`Msg: "${c.message}"`);
+            }
+
+            if (details.length) {
+                line += `\n   _${details.join(' | ')}_`;
+            }
         }
+
         return line;
+
     }).join('\n');
 
-    const message = `🍫 *New Order Received — Brownie Bliss*\n\n` +
+    const message =
+        `🍫 *New Order Received — Brownie Bliss*\n\n` +
         `📋 *Order ID:* ${orderId}\n` +
         `👤 *Customer:* ${checkoutState.name}\n` +
         `📱 *Phone:* +91 ${checkoutState.phone}\n` +
@@ -627,17 +638,33 @@ function sendWhatsAppFinal(orderId) {
         `_Your order has been recorded. Please share the payment receipt for confirmation!_ ✨`;
 
     const encodedMsg = encodeURIComponent(message);
+
     const fullPhone = `918072596340`;
+
     const waUrl = `https://wa.me/${fullPhone}?text=${encodedMsg}`;
 
     window.open(waUrl, '_blank');
 }
-
 // Redirect old button
 function sendToWhatsApp() {
     openCheckout();
 }
 
+let selectedPriceFilter = 'all';
+function updatePriceFilter() {
+    selectedPriceFilter =
+        document.getElementById('priceFilter').value;
+
+    const activeTab =
+        document.querySelector('.filter-tab.active');
+
+    const activeCategory =
+        activeTab
+            ? activeTab.textContent.toLowerCase()
+            : 'all';
+
+    filterProducts(activeCategory);
+}
 // --- PRODUCT FILTERING ---
 function filterProducts(category, btn) {
     const grid = document.getElementById('productsGrid');
@@ -648,7 +675,22 @@ function filterProducts(category, btn) {
         btn.classList.add('active');
     }
 
-    const filtered = category === 'all' ? products : products.filter(p => p.category === category);
+    let filtered = category === 'all'
+    ? products
+    : products.filter(p => p.category === category);
+
+// PRICE FILTER
+if (selectedPriceFilter === 'under200') {
+    filtered = filtered.filter(p => p.price < 200);
+}
+else if (selectedPriceFilter === '200to500') {
+    filtered = filtered.filter(
+        p => p.price >= 200 && p.price <= 500
+    );
+}
+else if (selectedPriceFilter === 'above500') {
+    filtered = filtered.filter(p => p.price > 500);
+}
 
     grid.innerHTML = filtered.map(p => `
         <div class="product-card" onclick='openCustomizeModal(${JSON.stringify(p).replace(/'/g, "&#39;")})' style="cursor:pointer">
@@ -671,8 +713,6 @@ function filterProducts(category, btn) {
                 <div class="product-name">${p.name}</div>
                 ${p.description ? `<div class="product-desc">${p.description}</div>` : ''}
                 <div class="product-price">₹${p.price}</div>
-                <button type="button" class="add-to-cart" data-product-id="${String(p.id)}">
-                    Add to Cart
                 <button class="add-to-cart">
                     Customize & Add
                 </button>
@@ -810,6 +850,8 @@ function addBirthdayToCart() {
         qty: 1
     };
     addToCart(item);
+    showToast('🎂 Birthday cake added to cart!');
+    openCart();
     if (msgInput) msgInput.value = '';
 }
 
